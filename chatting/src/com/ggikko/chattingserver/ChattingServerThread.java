@@ -236,8 +236,8 @@ public class ChattingServerThread extends Thread {
 						cst_buffer.append(SEPARATOR);
 						cst_buffer.append(cst_roomNumber);
 						send(cst_buffer.toString()); // YES_CREATEROOM | roomNumber
-						modifyWaitRoom();
-						modifyRoomUser(cst_roomNumber, id, 1);
+						modifyWaitRoom(); //MODIFY_WAITINFORMATION | roomNumber=chattingRoom'roomNumber=chattingRoom | id'id
+						modifyRoomUser(cst_roomNumber, id, 1); //MODIFY_ROOMUSER | id | 1 | id'id'id'id 를 특정 roomNumber로 반환
 					} else {
 						sendErrorCode(NO_CREATEROOM, result); // NO_CREATEROOM | ERROR_ROOMSFULL
 					}
@@ -246,9 +246,9 @@ public class ChattingServerThread extends Thread {
 				
 				/* receive data : REQUEST_ENTERROOM | logon id | roomNumber | password
 				 * 방입장 요청의 경우
-				 * 
-				 * 
-				 * 			
+				 * return YES_ENTEROOM | roomNumber | id
+				 * return MODIFY_ROOMUSER | id | 1 | id'id'id'id 를 특정 roomNumber로 반환
+				 * return MODIFY_WAITUSER | id'id'id
 				 */
 				case REQUEST_ENTERROOM : {
 					String id, password;
@@ -260,13 +260,53 @@ public class ChattingServerThread extends Thread {
 					} catch (NoSuchElementException e) {
 						password = "0";
 					}
-					//대기중
+					result = cst_waitingroom.joinRoom(id, this, roomNumber, password);
+					
+					if(result==0){
+						cst_buffer.setLength(0);
+						cst_buffer.append(YES_ENTERROOM);
+						cst_buffer.append(SEPARATOR);
+						cst_buffer.append(roomNumber);
+						cst_buffer.append(SEPARATOR);
+						cst_buffer.append(id);
+						cst_roomNumber = roomNumber;
+						send(cst_buffer.toString());
+						modifyRoomUser(roomNumber, id, 1); //MODIFY_ROOMUSER | id | 1 | id'id'id'id 를 특정 roomNumber로 반환
+						modifyWaitUser(); // MODIFY_WAITUSER | id'id'id 를 보내준다 각각
+					}
 					
 				}
 				
-				// receive data : REQUEST_QUITROOM | logon id | roomNumber 				
+				/* receive data : REQUEST_QUITROOM | logon id | roomNumber 		
+				 * 
+				 * return YES_QUITROOM | id
+				 * 방이 비어있다면 MODIFY_WAITINFORMATION | roomNumber=chattingRoom'roomNumber=chattingRoom | id'id
+				 * return MODIFY_WAITINFORMATION | roomNumber=chattingRoom'roomNumber=chattingRoom | id'id
+				 * return MODIFY_ROOMUSER | id | 0 | id'id'id'id 를 특정 roomNumber로 반환		
+				 */
 				case REQUEST_QUITROOM : {
+					String id;
+					int roomNumber;
+					boolean updateWaitInformation;
+					id = st.nextToken();
+					roomNumber = Integer.parseInt(st.nextToken());
 					
+					updateWaitInformation = cst_waitingroom.quitRoom(id, roomNumber, this); //방이 비어있으면 true 안비면 false
+					
+					cst_buffer.setLength(0);
+					cst_buffer.append(YES_QUITROOM);
+					cst_buffer.append(SEPARATOR);
+					cst_buffer.append(id);
+					send(cst_buffer.toString()); // YES_QUITROOM | id
+					cst_roomNumber = WAITINGROOM; // 방번호를 0번으로 바꿈 => 나왔기 때문에
+					
+					if(updateWaitInformation){ // 방이 비어있다면
+						modifyWaitRoom(); //MODIFY_WAITINFORMATION | roomNumber=chattingRoom'roomNumber=chattingRoom | id'id
+					} else{
+						modifyWaitRoom(); //MODIFY_WAITINFORMATION | roomNumber=chattingRoom'roomNumber=chattingRoom | id'id
+						modifyRoomUser(roomNumber, id, 0);   //MODIFY_ROOMUSER | id | 0 | id'id'id'id 를 특정 roomNumber로 반환
+					}
+					break;
 				}
 				
 				// receive data : REQUEST_LOGOUT | logon id 				
@@ -279,16 +319,18 @@ public class ChattingServerThread extends Thread {
 					
 					
 				}
-				
-				// receive data : REQUEST_SENDWORDTO | logon id | roomNumber | idTo | data			
-				case REQUEST_SENDWORDTO : {
-					
-				}
-				
+	
 				// receive data : REQUEST_COERCEOUT | roomnumber | idTo
 				case REQUEST_COERCEOUT : {
 					
 				}
+				
+				
+				/*  receive data : REQUEST_SENDWORDTO | logon id | roomNumber | idTo | data			
+				case REQUEST_SENDWORDTO : {
+					
+				}*/
+				
 
 				
 				

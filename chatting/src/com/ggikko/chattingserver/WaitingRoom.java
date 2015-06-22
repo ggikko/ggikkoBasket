@@ -206,5 +206,21 @@ public class WaitingRoom {
 		return 0;
 
 	}
-
+	
+	// 방에서 나온다. 채팅방이 비어있으면 방을 없애고 방 숫자를 줄인다. 그리고 대기방에 user vector, hash 추가
+	public synchronized boolean quitRoom(String id, int roomNumber, ChattingServerThread client){
+		boolean returnValue = false;
+		Integer roomNum = new Integer(roomNumber);
+		ChattingRoom room = (ChattingRoom) roomHash.get(roomNum); //채팅룸을 구해온다
+		if(room.delUser(id)){ //채팅방이 비어있으면 true반환
+			roomVector.removeElement(room);
+			roomHash.remove(roomNum);
+			roomCount--;
+			returnValue	= true;
+		}
+		userVector.addElement(id);
+		userHash.put(id, client);
+		return returnValue;
+		
+	}
 }

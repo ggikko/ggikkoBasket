@@ -97,9 +97,21 @@ public class ChattingRoom {
 		return isRock;
 	}
 	
+	//패스워드 체크
 	public boolean checkPassword(String passwd){
 		return password.equals(passwd);
 	}
+	
+	//채팅방에서 유저 지우기, user vector, hash 에서 지우고 roomuser--, 비었는지 안비었는지 반환
+	public boolean delUser(String id){
+		userVector.removeElement(id);
+		userHash.remove(id);
+		roomUser--;
+		return userVector.isEmpty();
+	}
+	
+	
+
 	
 
 }
