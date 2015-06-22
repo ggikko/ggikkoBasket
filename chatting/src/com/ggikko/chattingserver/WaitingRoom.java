@@ -182,7 +182,7 @@ public class WaitingRoom {
 		userCount--;
 	}
 	
-	// 채팅방이 비밀번호방인지 확인, 패스워드확인, 채팅방에 유저를 더함 
+	// 채팅방이 비밀번호방인지 확인, 패스워드확인, 대기방 유저 제거
 	public synchronized int joinRoom(String id, ChattingServerThread client,
 			int roomNumber, String password) {
 

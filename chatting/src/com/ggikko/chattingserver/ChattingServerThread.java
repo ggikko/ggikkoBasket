@@ -44,7 +44,7 @@ public class ChattingServerThread extends Thread {
 	private static final int YES_CREATEROOM = 2011;
 	private static final int NO_CREATEROOM = 2012;
 	private static final int YES_ENTERROOM = 2021;
-	private static final int NO_ETTERROOM = 2022;
+	private static final int NO_ENTERROOM = 2022;
 	private static final int YES_QUITROOM = 2031;
 	private static final int YES_LOGOUT = 2041;
 	private static final int YES_SENDWORD = 2051;
@@ -117,8 +117,8 @@ public class ChattingServerThread extends Thread {
 	 * 채팅방에 있는 유저를 수정함 return MODIFY_ROOMUSER | id | code | id'id'id'id 를 특정
 	 * roomNumber로 반환
 	 */
-	private void modifyRoomUser(int roomNumber, String id, int code)
-			throws IOException {
+	private void modifyRoomUser(int roomNumber, String id, int code) throws IOException {
+		
 		String ids = cst_waitingroom.getRoomInfo(roomNumber); // id'id'id (채팅룸의)
 		cst_buffer.setLength(0);
 		cst_buffer.append(MODIFY_ROOMUSER);
@@ -194,15 +194,15 @@ public class ChattingServerThread extends Thread {
 		}
 	}
 
-	// receive data : REQ_LOGON | id
-	// receive data : REQUEST_CREATEROOM | logon id |
-	// roomName'roomMaxUser'isRock'password
+	// receive data : REQUEST_LOGON | id
+	// receive data : REQUEST_CREATEROOM | logon id | roomName'roomMaxUser'isRock'password
 	// receive data : REQUEST_ENTERROOM | logon id | roomNumber | password
 	// receive data : REQUEST_QUITROOM | logon id | roomNumber
 	// receive data : REQUEST_LOGOUT | logon id
 	// receive data : REQUEST_SENDWORD | logon id | roomNumber | data
-	// receive data : REQUEST_SENDWORDTO | logon id | roomNumber | idTo | data
 	// receive data : REQUEST_COERCEOUT | roomnumber | idTo
+	
+	// receive data : REQUEST_SENDWORDTO | logon id | roomNumber | idTo | data
 
 	// 클라이언트 실행
 	public void run() {
@@ -219,8 +219,8 @@ public class ChattingServerThread extends Thread {
 
 				/*
 				 * receive data : REQ_LOGON | id 로그온 요청의 경우 대기방에 유저 넣고, return
-				 * YES_LOGON | roomNumber=chatRoom'roomNumber=chatRoom 에러시에
-				 * return NO_LOGON | ERROR_SERVERFULL or ERROR_ALREADYUSER(대기)
+				 * YES_LOGON | roomNumber=chatRoom'roomNumber=chatRoom or empty
+				 * 에러시에 return NO_LOGON | ERROR_SERVERFULL or ERROR_ALREADYUSER(대기)
 				 * or ERROR_ALREADYUSER(채팅) return MODIFY_WAITUSER | id'id'id
 				 */
 				case REQUEST_LOGON: {
@@ -249,15 +249,13 @@ public class ChattingServerThread extends Thread {
 				}
 
 				/*
-				 * receive data : REQUEST_CREATEROOM | logon id |
-				 * roomName'roomMaxUser'isRock'password 방만들기 요청의 경우 채팅방 새로운 객체
+				 * receive data : REQUEST_CREATEROOM | logon id | roomName'roomMaxUser'isRock'password 방만들기 요청의 경우 채팅방 새로운 객체
 				 * 생성, 채팅방에 id, client 추가, 대기방 삭제
-				 * 
-				 * return YES_CREATEROOM | roomNumber return
-				 * MODIFY_WAITINFORMATION |
+				 * return YES_CREATEROOM | roomNumber 
+				 * return MODIFY_WAITINFORMATION |
 				 * roomNumber=chattingRoom'roomNumber=chattingRoom | id'id
-				 * return MODIFY_ROOMUSER | id | 1 | id'id'id'id 를 특정
-				 * roomNumber로 반환
+				 * return MODIFY_ROOMUSER | id | 1 | id'id'id'id 를 특정 roomNumber로 반환
+				 * code 1 = 방에 추가시키겠다.
 				 */
 				case REQUEST_CRATEROOM: {
 					String id, roomName, password;
@@ -274,40 +272,30 @@ public class ChattingServerThread extends Thread {
 							: true;
 					password = room.nextToken();
 
-					// 새로운 객체 생성
+					// 새로운 객체 생성 , roomNumber도 생겼음
 					ChattingRoom chattingRoom = new ChattingRoom(roomName,
 							roomMaxUser, isRock, password, id);
 
-					// 대기방에 추가 roomVector, hash, count 추가 후 0리턴 or 에러 메세지 리턴
+					// 대기방에 추가 roomVector, hash, count 추가 후 0리턴 or 에러 메세지 리턴 ERROR_ROOMSFULL
 					result = cst_waitingroom.addRoom(chattingRoom);
 
 					if (result == 0) {
 						cst_roomNumber = ChattingRoom.getRoomNumber(); // hard
-						boolean temporary = chattingRoom.addUser(cst_ID, this); // 채팅방에
-																				// 입력된
-																				// id,
-																				// client
-																				// 추가
-						cst_waitingroom.delUser(cst_ID); // 대기방에서 삭제
+						boolean temporary = chattingRoom.addUser(cst_ID, this); // 채팅방에 입력된 id,client 추가
+						cst_waitingroom.delUser(cst_ID); // 대기방에서 삭제 
+						
+						//********* 에러 발생 가능 있음 ******** 룸 max일때 추정 테스트 안해봄
 
 						cst_buffer.setLength(0);
 						cst_buffer.append(YES_CREATEROOM);
 						cst_buffer.append(SEPARATOR);
 						cst_buffer.append(cst_roomNumber);
-						send(cst_buffer.toString()); // YES_CREATEROOM |
-														// roomNumber
-						modifyWaitRoom(); // MODIFY_WAITINFORMATION |
-											// roomNumber=chattingRoom'roomNumber=chattingRoom
-											// | id'id
-						modifyRoomUser(cst_roomNumber, id, 1); // MODIFY_ROOMUSER
-																// | id | 1 |
-																// id'id'id'id 를
-																// 특정
-																// roomNumber로
-																// 반환
+						send(cst_buffer.toString()); // YES_CREATEROOM | roomNumber
+						modifyWaitRoom(); // MODIFY_WAITINFORMATION | roomNumber=chattingRoom'roomNumber=chattingRoom| id'id
+						modifyRoomUser(cst_roomNumber, id, 1); // MODIFY_ROOMUSER | id | 1 | id'id'id'id 를
+																// 특정 roomNumber로 반환
 					} else {
-						sendErrorCode(NO_CREATEROOM, result); // NO_CREATEROOM |
-																// ERROR_ROOMSFULL
+						sendErrorCode(NO_CREATEROOM, result); // NO_CREATEROOM | ERROR_ROOMSFULL
 					}
 					break;
 				}
@@ -328,11 +316,10 @@ public class ChattingServerThread extends Thread {
 					} catch (NoSuchElementException e) {
 						password = "0";
 					}
-					result = cst_waitingroom.joinRoom(id, this, roomNumber,
-							password);
+					result = cst_waitingroom.joinRoom(id, this, roomNumber, password);
 
 					if (result == 0) {
-						cst_buffer.setLength(0);
+						cst_buffer.setLength(0); 
 						cst_buffer.append(YES_ENTERROOM);
 						cst_buffer.append(SEPARATOR);
 						cst_buffer.append(roomNumber);
@@ -340,12 +327,13 @@ public class ChattingServerThread extends Thread {
 						cst_buffer.append(id);
 						cst_roomNumber = roomNumber;
 						send(cst_buffer.toString());
-						modifyRoomUser(roomNumber, id, 1); // MODIFY_ROOMUSER |
-															// id | 1 |
-															// id'id'id'id 를 특정
-															// roomNumber로 반환
+						modifyRoomUser(roomNumber, id, 1); // MODIFY_ROOMUSER | id | 1 | id'id'id'id 를 특정 roomNumber로 반환
 						modifyWaitUser(); // MODIFY_WAITUSER | id'id'id 를 보내준다
 											// 각각
+					}
+					else{
+						sendErrorCode(NO_ENTERROOM, result);
+						
 					}
 
 				}
