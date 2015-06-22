@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.net.Socket;
 import java.util.Enumeration;
 import java.util.Hashtable;
+import java.util.NoSuchElementException;
 import java.util.StringTokenizer;
 
 // 클라이언트 쓰레드 클래스
@@ -198,12 +199,20 @@ public class ChattingServerThread extends Thread {
 					break;
 				}		
 				
-				// receive data : REQUEST_CREATEROOM | logon id | roomName'roomMaxUser'isRock'password	
+				/* receive data : REQUEST_CREATEROOM | logon id | roomName'roomMaxUser'isRock'password
+				 * 방만들기 요청의 경우
+				 * 채팅방 새로운 객체 생성, 채팅방에 id, client 추가, 대기방 삭제
+				 * 
+				 * return YES_CREATEROOM | roomNumber
+				 * return MODIFY_WAITINFORMATION | roomNumber=chattingRoom'roomNumber=chattingRoom | id'id
+				 * return MODIFY_ROOMUSER | id | 1 | id'id'id'id 를 특정 roomNumber로 반환
+				 */
 				case REQUEST_CRATEROOM : {
 					String id, roomName, password;
 					int roomMaxUser, result;
 					boolean isRock;
-					id = st.nextToken();
+					//파싱 시작
+					id = st.nextToken(); 
 					String roomInfomation = st.nextToken();
 					StringTokenizer room = new StringTokenizer(roomInfomation, DELIMETER);
 					roomName = room.nextToken();
@@ -211,19 +220,47 @@ public class ChattingServerThread extends Thread {
 					isRock = (Integer.parseInt(room.nextToken())==0) ? false : true;
 					password = room.nextToken();
 					
+					//새로운 객체 생성
 					ChattingRoom chattingRoom = new ChattingRoom(roomName, roomMaxUser, isRock, password,id);
 					
+					//대기방에 추가 roomVector, hash, count 추가 후 0리턴 or 에러 메세지 리턴
 					result = cst_waitingroom.addRoom(chattingRoom);
+					
 					if(result==0){
-				
+						cst_roomNumber = ChattingRoom.getRoomNumber(); // hard
+						boolean temporary = chattingRoom.addUser(cst_ID, this); // 채팅방에 입력된 id, client 추가 
+						cst_waitingroom.delUser(cst_ID); //대기방에서 삭제
+						
+						cst_buffer.setLength(0);
+						cst_buffer.append(YES_CREATEROOM);
+						cst_buffer.append(SEPARATOR);
+						cst_buffer.append(cst_roomNumber);
+						send(cst_buffer.toString()); // YES_CREATEROOM | roomNumber
+						modifyWaitRoom();
+						modifyRoomUser(cst_roomNumber, id, 1);
 					} else {
-						sendErrorCode(NO_CREATEROOM, result);
+						sendErrorCode(NO_CREATEROOM, result); // NO_CREATEROOM | ERROR_ROOMSFULL
 					}
 					break;					
 				}
 				
-				// receive data : REQUEST_ENTERROOM | logon id | roomNumber | password			
+				/* receive data : REQUEST_ENTERROOM | logon id | roomNumber | password
+				 * 방입장 요청의 경우
+				 * 
+				 * 
+				 * 			
+				 */
 				case REQUEST_ENTERROOM : {
+					String id, password;
+					int roomNumber, result;
+					id = st.nextToken();
+					roomNumber = Integer.parseInt(st.nextToken());
+					try {
+						password = st.nextToken();
+					} catch (NoSuchElementException e) {
+						password = "0";
+					}
+					//대기중
 					
 				}
 				

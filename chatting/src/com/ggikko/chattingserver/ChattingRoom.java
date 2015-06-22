@@ -75,6 +75,31 @@ public class ChattingRoom {
 		return false; // 아이디가 존재하지 않습니다.
 	}
 	
+	//현재 roomNumber를 return
+	public static synchronized int getRoomNumber(){
+		return roomNumber;
+	}
+	
+	// id와 client를 받고 채팅방의 룸 최대치 체크하고, 채팅방에 user vector, hash, count 에 더한다.
+	public boolean addUser(String id, ChattingServerThread client){
+		if(roomUser == roomMaxUser){
+			return false;
+		}
+		
+		userVector.addElement(id);
+		userHash.put(id,client);
+		roomUser++;
+		return true;
+	}
+	
+	//방이 잠겼는지 안잠겼는지 체크함
+	public boolean isRockecd(){
+		return isRock;
+	}
+	
+	public boolean checkPassword(String passwd){
+		return password.equals(passwd);
+	}
 	
 
 }
